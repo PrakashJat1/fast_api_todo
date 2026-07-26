@@ -23,5 +23,7 @@ class UserRegister(BaseModel):
         return self
 
 class UserLogin(BaseModel):
-    email : EmailStr = Field(alias="Email",default="user@ecample.com")
+    model_config = ConfigDict(populate_by_name=True,validate_by_alias=True)
+    
+    email : EmailStr = Field(alias="Email",default="user@example.com")
     password : str = Field(alias="Password")

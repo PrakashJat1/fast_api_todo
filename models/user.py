@@ -6,7 +6,7 @@ from datetime import datetime
 
 class Role(PyEnum):
     ADMIN = "admin"
-    User = "user"
+    USER = "user"
 
 class User(Base):
     __tablename__ = "user"

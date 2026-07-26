@@ -7,12 +7,13 @@ from fastapi.exceptions import HTTPException
 from db import get_db
 from models.user import User
 from schemas.auth import UserRegister, UserLogin
+from schemas.user import UserResponse
 from utils import get_hashed_password, verify_password, create_token
+from fastapi.security import OAuth2PasswordRequestForm
 
 auth_router = APIRouter()
-#Hyy
 
-@auth_router.post('/register')
+@auth_router.post('/register',response_model=UserResponse)
 async def register(user: UserRegister, db: AsyncSession = Depends(get_db)):
     
     result = await db.execute(select(User).where(User.email == user.email))
@@ -30,7 +31,8 @@ async def register(user: UserRegister, db: AsyncSession = Depends(get_db)):
     return user_data
 
 @auth_router.post('/login')
-async def login(user: UserLogin, db: AsyncSession = Depends(get_db)):
+async def login(form_data: OAuth2PasswordRequestForm = Depends(), db: AsyncSession = Depends(get_db)):
+    user = UserLogin(Email=form_data.username,Password=form_data.password)
     
     result = await db.execute(select(User).where(User.email == user.email))
     existing_user = result.scalar_one_or_none()
