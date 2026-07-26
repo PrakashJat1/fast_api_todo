@@ -12,6 +12,7 @@ class User(Base):
     __tablename__ = "user"
     
     id: Mapped[int] = mapped_column(Integer, primary_key=True, index=True)
+    todos : Mapped[list["TODO"]] = relationship(back_populates="user")
     email : Mapped[str] = mapped_column(String,unique=True,nullable=False,index=True)
     password: Mapped[str] = mapped_column(String,nullable=False)
     role : Mapped[Role] = mapped_column(Enum(Role,name="role_enum"))
