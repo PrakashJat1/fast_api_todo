@@ -11,7 +11,7 @@ from utils import get_current_user,authorize, is_current_user
 
 user_router = APIRouter()
 
-@user_router.get("/")
+@user_router.get("/",response_model=list[UserResponse])
 async def get_users(current_user : User = Depends(authorize(allowed_roles=[Role.ADMIN])),db : AsyncSession = Depends(get_db)):
     result = await db.execute(select(User.id,User.email,User.role,User.created_at, User.login_at).order_by(User.id))
     return result.mappings().all()
@@ -35,7 +35,7 @@ async def update_user(id: int,updated_user : UserUpdateRequest, db: AsyncSession
         if result.scalar_one_or_none() is not None:
             raise HTTPException(status_code=400,detail=f"User with '{updated_user.email}' already exist")
     
-    result = await db.execute(update(User).where(User.id == id).values(**updated_user.model_dump()).returning(User))
+    result = await db.execute(update(User).where(User.id == id).values(**updated_user.model_dump(exclude_unset=True)).returning(User))
     await db.commit()
     return result.scalars().first()
     
