@@ -1,4 +1,4 @@
-from fastapi import APIRouter, Depends
+from fastapi import APIRouter, Depends, status
 from fastapi.responses import JSONResponse
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select, update, delete, and_
@@ -6,20 +6,28 @@ from fastapi.exceptions import HTTPException
 from db import get_db
 from models.user import User, Role
 from schemas.user import UserResponse, UserUpdateRequest
+from schemas.common_response import UserWithTodosResponse
 from utils import get_current_user,authorize, is_current_user
+from sqlalchemy.orm import selectinload, joinedload
 
 
 user_router = APIRouter()
 
-@user_router.get("/",response_model=list[UserResponse])
+@user_router.get("/",response_model=list[UserWithTodosResponse])
 async def get_users(current_user : User = Depends(authorize(allowed_roles=[Role.ADMIN])),db : AsyncSession = Depends(get_db)):
-    result = await db.execute(select(User.id,User.email,User.role,User.created_at, User.login_at).order_by(User.id))
-    return result.mappings().all()
+    result = await db.execute(select(User.id,User.email,User.role,User.created_at, User.login_at).order_by(User.id).options(selectinload(User.todos)))
+    users = result.mappings().all() 
+    if len(users) == 0:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND,detail="Empty Users")
+    return users
 
-@user_router.get("/{id}",response_model=UserResponse)
-async def get_user_by_id(id : int,current_user : User = Depends(authorize(allowed_roles=[Role.ADMIN])), db : AsyncSession = Depends(get_db)):
-    result = await db.execute(select(User).where(User.id == id))
-    return result.scalars().first()
+@user_router.get("/{id}",response_model=UserWithTodosResponse)
+async def get_user_by_id(id : int,current_user : User = Depends(authorize(allowed_roles=[Role.ADMIN,Role.USER])), db : AsyncSession = Depends(get_db)):
+    result = await db.execute(select(User).where(User.id == id).options(selectinload(User.todos)))
+    user = result.scalar_one_or_none()
+    if user is None:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND,detail="Not present")
+    return user
 
 @user_router.put("/{id}",response_model=UserResponse)
 async def update_user(id: int,updated_user : UserUpdateRequest, db: AsyncSession = Depends(get_db),current_user: User= Depends(get_current_user)):

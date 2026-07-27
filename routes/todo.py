@@ -6,7 +6,9 @@ from models.todo import TODO
 from schemas.todo import TodoCreate,TodoResponse,TodoUpdate 
 from fastapi import HTTPException, status
 from sqlalchemy import select, update, delete
+from sqlalchemy.orm import joinedload
 from models.user import User, Role
+from schemas.common_response import TodoWithUserResponse
 
 todo_router = APIRouter()
 
@@ -20,10 +22,13 @@ async def create_todo(todo : TodoCreate,current_user : User = Depends(authorize(
     await db.refresh(todo_data)
     return todo_data
 
-@todo_router.get("/get_my_todos",response_model=list[TodoResponse])
+@todo_router.get("/get_my_todos",response_model=list[TodoWithUserResponse])
 async def get_todo(current_user : User = Depends(authorize([Role.USER])), db : AsyncSession = Depends(get_db)):
-    result = await db.execute(select(TODO).where(TODO.user_id == current_user.id).order_by(TODO.id))
-    return result.scalars().all()
+    result = await db.execute(select(TODO).where(TODO.user_id == current_user.id).order_by(TODO.id).options(joinedload(TODO.user)))
+    todos = result.scalars().all() 
+    if len(todos) == 0:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND,detail="Empty Todos")
+    return todos
     
 @todo_router.patch("/{todo_id}",response_model=TodoResponse)
 async def update_todo(todo_id : int,updated_todo : TodoUpdate ,current_user : User = Depends(authorize([Role.USER])),db : AsyncSession = Depends(get_db)):
