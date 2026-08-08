@@ -5,11 +5,16 @@ from routes.todo import todo_router
 from routes.user import user_router
 from routes.auth import auth_router
 from lifespan_events import redis_client_lifespan
+from middlewares.rate_limiter import RateLimiterMiddleware
 load_dotenv()
+import logging
+logging.basicConfig(level=logging.INFO, format="%(asctime)s - %(name)s - %(levelname)s - %(message)s")
+logger = logging.getLogger(__name__)
+
 
 app = FastAPI(title="TODO APP", description="Todo app for practice fastapi",version="1.0",lifespan=redis_client_lifespan)
 
-db = get_db()
+app.add_middleware(RateLimiterMiddleware)
 
 @app.get("/")
 def root():
