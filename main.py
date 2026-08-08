@@ -4,9 +4,10 @@ from db import get_db
 from routes.todo import todo_router
 from routes.user import user_router
 from routes.auth import auth_router
+from lifespan_events import redis_client_lifespan
 load_dotenv()
 
-app = FastAPI(title="TODO APP", description="Todo app for practice fastapi",version="1.0")
+app = FastAPI(title="TODO APP", description="Todo app for practice fastapi",version="1.0",lifespan=redis_client_lifespan)
 
 db = get_db()
 
