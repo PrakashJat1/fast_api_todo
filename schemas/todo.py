@@ -9,6 +9,14 @@ class TodoCreate(BaseModel):
     title : str
     description : str
 
+class SimpleTodoResponse(BaseModel):
+    model_config = ConfigDict(populate_by_name=True,from_attributes=True)
+    
+    id : int
+    title : str
+    description : str
+    is_completed : bool
+    created_at : datetime
 class TodoResponse(BaseModel):
     model_config = ConfigDict(populate_by_name=True,from_attributes=True)
     
