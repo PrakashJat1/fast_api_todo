@@ -1,5 +1,6 @@
-import enum
+from fastapi.responses import JSONResponse
 from jose import jwt
+import json
 from jose.exceptions import JWTError
 import os
 from models.user import User, Role
@@ -8,10 +9,13 @@ from passlib.context import CryptContext
 from datetime import datetime, timedelta, timezone
 from fastapi.exceptions import HTTPException
 from db import get_db
-from fastapi import Depends, status
+from fastapi import Depends, status, Request
 from sqlalchemy import select
 from fastapi.security import OAuth2PasswordBearer
 from sqlalchemy.ext.asyncio import AsyncSession
+from functools import wraps
+import logging 
+logger = logging.getLogger(__name__)
 
 
 password_context = CryptContext(schemes=["bcrypt"],deprecated="auto")
@@ -90,4 +94,33 @@ def authorize(allowed_roles : list[str]):
 def is_current_user(incoming_user: User, current_user : User):
     if incoming_user.id != current_user.id :
         raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED,detail="You are not an authorized person to acess this operation")
+
+
+def caching_decorator(expires_in = 60):
+    
+    def decorator(func):
+    
+        @wraps(func)
+        async def wrapper(*args,**kwargs):
+            
+            request : Request = kwargs.get("request")
+            if request is None:
+                raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST,detail="Request object is required for caching")
+            
+            redis = request.app.state.redis
+            cache_key = f"{request.url.path}:{request.query_params}"
+            
+            cached_response = await redis.get(cache_key)
+            if cached_response:
+                logger.info(f"Cache hit for {cache_key}")
+                return JSONResponse(status_code=200,content=json.loads(cached_response))
+            
+            logger.info(f"Cache miss for {cache_key}.")
+            response = await func(*args,**kwargs)
+            await redis.set(cache_key,json.dumps(response),ex=expires_in)
+            return response
+        
+        return wrapper
+
+    return decorator
     
